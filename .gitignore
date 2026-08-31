@@ -1,0 +1,112 @@
+# ==========================================
+# OS FILES
+# ==========================================
+
+.DS_Store
+Thumbs.db
+
+
+# ==========================================
+# IDE / EDITOR FILES
+# ==========================================
+
+.idea/
+.vscode/
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+
+# ==========================================
+# JAVA / SPRING BOOT
+# ==========================================
+
+**/target/
+*.class
+
+# Spring logs
+*.log
+
+
+# ==========================================
+# NODE / REACT / VITE
+# ==========================================
+
+**/node_modules/
+**/dist/
+**/.vite/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+
+# ==========================================
+# ENVIRONMENT FILES
+# ==========================================
+
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+
+# ==========================================
+# PYTHON
+# ==========================================
+
+__pycache__/
+*.py[cod]
+
+*.pyo
+*.pyd
+
+.pytest_cache/
+.mypy_cache/
+
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+
+# ==========================================
+# ML / DATA
+# ==========================================
+
+# Don't accidentally commit generated datasets
+# Uncomment if your datasets are generated locally:
+# ml/data/
+
+# Temporary model files
+*.joblib
+
+# IMPORTANT:
+# Do NOT ignore *.pkl because our trained model
+# is intentionally tracked in the repository.
+
+
+# ==========================================
+# LOCAL DATABASE / SECRETS
+# ==========================================
+
+*.sqlite
+*.sqlite3
+
+application-local.properties
+application-local.yml
+
+
+# ==========================================
+# TEMPORARY FILES
+# ==========================================
+
+*.tmp
+*.temp
+*.bak
