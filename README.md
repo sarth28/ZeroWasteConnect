@@ -1,4 +1,4 @@
-# ZeroWaste Connect ♻️
+# ZeroWaste Connect 
 
 ZeroWaste Connect is a food-waste management platform designed to connect restaurants with NGOs that can receive and distribute surplus food.
 
@@ -6,7 +6,7 @@ The project combines a **React frontend**, **Spring Boot backend**, **PostgreSQL
 
 ---
 
-## 🎯 Objective
+## Objective
 
 A significant amount of edible food is wasted by restaurants despite nearby organizations having a demand for food.
 
@@ -109,14 +109,10 @@ ZeroWaste-Connect/
 │   ├── pom.xml
 │   └── ...
 │
-├── ml/
-│   ├── notebook/
-│   │   └── model_training.ipynb
-│   ├── api/
-│   │   ├── main.py
-│   │   └── requirements.txt
-│   └── ...
-│
+├── ml-service/
+│   ├──zerowaste_match_model.pkl
+│   ├── app.py
+│   ├── requirements.txt
 ├── .gitignore
 └── README.md
 ```
@@ -125,7 +121,7 @@ ZeroWaste-Connect/
 
 ---
 
-# 👥 Core Entities
+#  Core Entities
 
 ## Restaurant
 
@@ -198,7 +194,7 @@ The matching system can use:
 
 ---
 
-# 🤖 Machine Learning Component
+#  Machine Learning Component
 
 The project contains a separate ML service for predicting whether a particular food listing and NGO are likely to form a successful match.
 
@@ -327,7 +323,7 @@ The ML component is intended primarily as a demonstration of how intelligent mat
 
 ---
 
-# 🔌 ML API
+#  ML API
 
 The ML model is exposed through a FastAPI service.
 
@@ -390,7 +386,7 @@ Example response:
 
 ---
 
-# 🌐 Backend API
+# Backend API
 
 The Spring Boot backend currently exposes REST endpoints for the major entities.
 
@@ -446,7 +442,7 @@ POST /ml/predict-match
 
 ---
 
-# 📖 API Documentation
+# API Documentation
 
 When the Spring Boot backend is running, Swagger/OpenAPI documentation is available at:
 
@@ -462,7 +458,7 @@ http://localhost:8000/docs
 
 ---
 
-# ⚙️ Running the Project
+# Running the Project
 
 ## 1. PostgreSQL
 
@@ -550,7 +546,7 @@ Vite will provide the local frontend URL.
 
 ---
 
-# 🔐 Environment Variables
+# Environment Variables
 
 Sensitive configuration should not be committed.
 
@@ -567,7 +563,7 @@ A `.env.example` or equivalent configuration template should be committed instea
 
 ---
 
-# 🚧 Current Development Status
+# Current Development Status
 
 ### Completed / In Progress
 
@@ -592,7 +588,7 @@ A `.env.example` or equivalent configuration template should be committed instea
 
 ---
 
-# ⚠️ Dataset and Model Disclaimer
+# Dataset and Model Disclaimer
 
 The current machine-learning model is trained on **synthetically generated data**.
 
@@ -610,7 +606,7 @@ Real-world deployment would require collecting and validating historical food do
 
 ---
 
-# 🔮 Future Improvements
+# Future Improvements
 
 Potential future improvements include:
 
@@ -629,7 +625,7 @@ Potential future improvements include:
 
 ---
 
-# 👨‍💻 Project
+# Project
 
 **ZeroWaste Connect**
 
