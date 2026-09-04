@@ -7,7 +7,7 @@ The project combines a **React frontend**, **Spring Boot backend**, **PostgreSQL
 ---
 
 ## Objective
-
+ 
 A significant amount of edible food is wasted by restaurants despite nearby organizations having a demand for food.
 
 ZeroWaste Connect aims to reduce this gap by providing a platform where:
