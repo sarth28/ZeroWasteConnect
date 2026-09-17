@@ -1,39 +1,31 @@
-# ZeroWaste Connect 
+# 🌱 ZeroWaste Connect
 
-ZeroWaste Connect is a food-waste management platform designed to connect restaurants with NGOs that can receive and distribute surplus food.
+ZeroWaste Connect is a full-stack food-waste management platform that connects **restaurants** with surplus food to **NGOs** that can redistribute it — with a machine-learning service that scores how likely a given food listing and NGO are to form a successful match.
 
-The project combines a **React frontend**, **Spring Boot backend**, **PostgreSQL database**, and a separate **Python/FastAPI machine-learning service** for intelligent food–NGO matching.
+The project is made up of three independently runnable services:
 
----
-
-## Objective
- 
-A significant amount of edible food is wasted by restaurants despite nearby organizations having a demand for food.
-
-ZeroWaste Connect aims to reduce this gap by providing a platform where:
-
-* Restaurants can register and manage surplus food listings.
-* NGOs can register their requirements and available capacity.
-* Food listings can be matched with suitable NGOs.
-* Geographic distance can be considered during matching.
-* Food urgency and NGO demand can be considered.
-* A machine-learning model can estimate the probability that a food–NGO pair is a successful match.
+| Service | Folder | Stack |
+|---|---|---|
+| Frontend | `ZeroWaste_frontend/` | React 18 + Vite + Bootstrap 5 + Chart.js |
+| Backend API | `ZeroWaste_backend/` | Java 21 + Spring Boot 3 + Spring Data JPA + PostgreSQL |
+| ML Service | `ml-service/` | Python + FastAPI + CatBoost |
 
 ---
 
-## 🏗️ System Architecture
+##  System Architecture
 
 ```text
                     ┌─────────────────────┐
-                    │     React Frontend  │
-                    │   Vite + Bootstrap  │
+                    │   React Frontend    │
+                    │  Vite + Bootstrap   │
+                    │   (ZeroWaste_frontend)
                     └──────────┬──────────┘
-                               │
-                               │ HTTP / REST
+                               │ HTTP / REST (axios)
                                ▼
                     ┌─────────────────────┐
-                    │   Spring Boot API   │
-                    │       Java 21       │
+                    │  Spring Boot API    │
+                    │      Java 21        │
+                    │  (ZeroWaste_backend)│
                     └──────────┬──────────┘
                                │
               ┌────────────────┼────────────────┐
@@ -41,9 +33,9 @@ ZeroWaste Connect aims to reduce this gap by providing a platform where:
               ▼                ▼                ▼
        ┌────────────┐   ┌────────────┐   ┌──────────────┐
        │ PostgreSQL │   │ Matching   │   │ ML Service   │
-       │  Database  │   │   Logic    │   │ FastAPI      │
-       └────────────┘   └────────────┘   └──────┬───────┘
-                                                 │
+       │  Database  │   │  Service   │   │ FastAPI      │
+       └────────────┘   └────────────┘   │ (ml-service) │
+                                          └──────┬───────┘
                                                  ▼
                                         ┌─────────────────┐
                                         │ CatBoost Model  │
@@ -51,84 +43,67 @@ ZeroWaste Connect aims to reduce this gap by providing a platform where:
                                         └─────────────────┘
 ```
 
----
-
-## 🛠️ Technology Stack
-
-### Frontend
-
-* React
-* Vite
-* Axios
-* Bootstrap 5
-* JavaScript
-
-### Backend
-
-* Java 21
-* Spring Boot
-* Spring Data JPA
-* Maven
-* REST APIs
-* SpringDoc / OpenAPI
-
-### Database
-
-* PostgreSQL
-
-### Machine Learning
-
-* Python
-* FastAPI
-* Pandas
-* NumPy
-* CatBoost
-* Scikit-learn
-* Pickle
+The backend has two independent ways of proposing a match:
+1. **Rule-based auto-match** (`MatchingService`) — scores every NGO against a food listing using capacity, demand, category and distance, and picks the best one.
+2. **ML-based prediction** (`MLPredictionService` → FastAPI `/predict-match`) — given one food/NGO pair, returns a learned match probability from the CatBoost model.
 
 ---
 
-## 📂 Project Structure
+##  Project Structure
 
 ```text
-ZeroWaste-Connect/
-│
-├── frontend/
-│   ├── src/
-│   ├── public/
-│   ├── package.json
-│   └── ...
-│
-├── backend/
-│   ├── src/
-│   │   ├── main/
-│   │   │   └── java/
-│   │   │       └── com/
-│   │   │           └── zerowaste/
-│   │   └── resources/
-│   ├── pom.xml
-│   └── ...
+.
+├── README.md
 │
 ├── ml-service/
-│   ├──zerowaste_match_model.pkl
-│   ├── app.py
+│   ├── app.py                     # FastAPI app, serves the trained model
+│   ├── train.py                   # Generates synthetic data + trains/exports the model
 │   ├── requirements.txt
-├── .gitignore
-└── README.md
+│   └── zerowaste_match_model.pkl  # Serialized model bundle (generated by train.py)
+│
+├── ZeroWaste_backend/
+│   ├── pom.xml
+│   ├── mvnw / mvnw.cmd
+│   └── src/main/java/com/zerowaste/zerowaste/connect/
+│       ├── Application.java
+│       ├── CorsConfig.java
+│       ├── config/RestClientConfig.java      # RestClient pointed at the ML service
+│       ├── controller/
+│       │   ├── RestaurantController.java
+│       │   ├── NGOController.java
+│       │   ├── FoodListingController.java
+│       │   ├── MatchingController.java
+│       │   ├── MLPredictionController.java
+│       │   └── AnalyticsController.java
+│       ├── dto/                              # ML request/response + analytics DTOs
+│       ├── entity/                           # Restaurant, NGO, FoodListing, MatchRecord
+│       ├── repository/                       # Spring Data JPA repositories
+│       └── service/                          # MatchingService, MLPredictionService, AnalyticsService
+│
+└── ZeroWaste_frontend/
+    ├── index.html
+    ├── package.json
+    ├── vite.config.js
+    └── src/
+        ├── App.jsx / main.jsx / App.css / index.css
+        ├── api.js                            # axios client for the backend
+        ├── components/Layout.jsx             # sidebar navigation shell
+        └── pages/
+            ├── Dashboard.jsx
+            ├── Restaurants.jsx
+            ├── NGOs.jsx
+            ├── FoodListings.jsx
+            ├── Matching.jsx
+            └── Analytics.jsx
 ```
 
-> The exact directory names may differ depending on the current development setup.
+> Package name note: the Java package is `com.zerowaste.zerowaste.connect` (nested under the `ZeroWaste_backend` module).
 
 ---
 
-#  Core Entities
+##  Core Entities
 
-## Restaurant
-
-Restaurants represent food donors on the platform.
-
-Current fields include:
-
+### Restaurant
 ```text
 id
 name
@@ -136,14 +111,7 @@ location
 contactNumber
 ```
 
----
-
-## NGO
-
-NGOs represent organizations that can receive surplus food.
-
-Current fields include:
-
+### NGO
 ```text
 id
 name
@@ -155,14 +123,7 @@ latitude
 longitude
 ```
 
----
-
-## Food Listing
-
-A food listing represents surplus food made available by a restaurant.
-
-Current information includes:
-
+### Food Listing
 ```text
 id
 foodName
@@ -173,168 +134,113 @@ shelfLifeHours
 restaurantId
 latitude
 longitude
+status          # defaults to "AVAILABLE", set to "MATCHED" once matched
+```
+
+### Match Record
+```text
+id
+foodListingId
+ngoId
+status          # e.g. "MATCHED"
+matchScore
+matchingReason
+matchedAt
 ```
 
 ---
 
-## Match Record
+##  Backend API
 
-Match records represent food–NGO matching results.
+Base URL: `http://localhost:8080`
 
-The matching system can use:
+### Restaurants
+```text
+GET    /restaurants
+GET    /restaurants/{id}
+POST   /restaurants
+PUT    /restaurants/{id}
+DELETE /restaurants/{id}
+```
 
-* Food category
-* NGO category preference
-* Food quantity
-* NGO capacity
-* NGO current demand
-* Geographic distance
-* Food shelf life
-* Time remaining until expiry
+### NGOs
+```text
+GET    /ngos
+GET    /ngos/{id}
+POST   /ngos
+PUT    /ngos/{id}
+DELETE /ngos/{id}
+```
+
+### Food Listings
+```text
+GET    /food
+GET    /food/{id}
+POST   /food          # validates name, quantity, category, expiry date, coordinates, shelf life
+PUT    /food/{id}
+DELETE /food/{id}
+```
+
+### Matching
+```text
+GET  /matches                       # list all match records
+POST /matches                       # create a match record directly
+POST /matches/match-food/{foodId}   # rule-based auto-match against all NGOs
+```
+`POST /matches/match-food/{foodId}` returns:
+- `404` if the food listing doesn't exist or no NGO has enough available capacity
+- `409` if the food listing has already been matched
+- `200` with the created `MatchRecord` (including `matchScore` and `matchingReason`) on success
+
+### Analytics
+```text
+GET /analytics
+```
+Returns restaurant/NGO/food-listing/match counts plus an estimated `foodSavedKg`.
+
+### ML-Powered Matching
+```text
+POST /ml/predict-match
+```
+Forwards a food + NGO payload to the FastAPI ML service and returns its prediction.
+
+Swagger/OpenAPI UI (once the backend is running):
+```text
+http://localhost:8080/swagger-ui/index.html
+```
 
 ---
 
-#  Machine Learning Component
+##  Machine Learning Service
 
-The project contains a separate ML service for predicting whether a particular food listing and NGO are likely to form a successful match.
-
-The model is trained using **synthetic data** designed to represent realistic food donation and NGO matching scenarios.
+The ML service is a separate FastAPI app that loads a pre-trained `CatBoostClassifier` and predicts the probability that a food listing and NGO will form a successful match.
 
 ### Model
-
-Current model:
-
 ```text
 CatBoostClassifier
+Target: match_success   (0 = unlikely match, 1 = likely match)
 ```
 
-### Target
-
+### Features used (15 total)
 ```text
-match_success
+quantity, category, shelf_life_hours, hours_until_expiry, urgency_score,
+capacity, current_demand, available_capacity, category_preference,
+distance_km, category_match, quantity_capacity_ratio,
+demand_coverage_ratio, capacity_fit_score, demand_score
 ```
+`category` and `category_preference` are treated as categorical features.
 
-where:
+Key derived features:
+- **`distance_km`** — Haversine distance between restaurant and NGO coordinates.
+- **`category_match`** — `1` if the NGO's `category_preference` equals the food's `category`, or the NGO accepts `"Any"`; otherwise `0`.
+- **`available_capacity`** — `capacity - current_demand`.
 
-```text
-0 = Unsuccessful / unlikely match
-1 = Successful / likely match
-```
+### Endpoints (`ml-service/app.py`)
 
-The ML service returns:
-
-```json
-{
-  "match_probability": 0.88,
-  "match_prediction": 1
-}
-```
-
----
-
-## 🧠 ML Features
-
-The current model uses 15 features:
-
-```text
-quantity
-category
-shelf_life_hours
-hours_until_expiry
-urgency_score
-capacity
-current_demand
-available_capacity
-category_preference
-distance_km
-category_match
-quantity_capacity_ratio
-demand_coverage_ratio
-capacity_fit_score
-demand_score
-```
-
-Two categorical features are currently used:
-
-```text
-category
-category_preference
-```
-
-### Derived Features
-
-The model also calculates useful matching features such as:
-
-#### Distance
-
-Distance between the restaurant and NGO is calculated using the Haversine formula.
-
-```text
-distance_km
-```
-
-#### Category Match
-
-```text
-category_match = 1
-```
-
-when the NGO accepts the food category or has an `Any` preference.
-
-Otherwise:
-
-```text
-category_match = 0
-```
-
-#### Available Capacity
-
-```text
-available_capacity =
-    capacity - current_demand
-```
-
----
-
-# 📊 Current ML Performance
-
-The current CatBoost model was evaluated using a synthetic dataset.
-
-Current test results:
-
-```text
-Accuracy  : 0.6587
-Precision : 0.6612
-Recall    : 0.5930
-F1 Score  : 0.6252
-ROC-AUC   : 0.7097
-```
-
-Confusion matrix:
-
-```text
-[[3740 1459]
- [1954 2847]]
-```
-
-These results are based on synthetic data and should therefore not be interpreted as real-world performance.
-
-The ML component is intended primarily as a demonstration of how intelligent matching can be integrated into the ZeroWaste Connect platform.
-
----
-
-#  ML API
-
-The ML model is exposed through a FastAPI service.
-
-## Health Check
-
+**Health check**
 ```http
 GET /
 ```
-
-Example response:
-
 ```json
 {
   "message": "ZeroWaste Connect ML Service is running",
@@ -344,16 +250,11 @@ Example response:
 }
 ```
 
----
-
-## Predict Match
-
+**Predict match**
 ```http
 POST /predict-match
 ```
-
-Example request:
-
+Request:
 ```json
 {
   "food": {
@@ -374,9 +275,7 @@ Example request:
   }
 }
 ```
-
-Example response:
-
+Response:
 ```json
 {
   "match_probability": 0.4353,
@@ -384,261 +283,119 @@ Example response:
 }
 ```
 
----
-
-# Backend API
-
-The Spring Boot backend currently exposes REST endpoints for the major entities.
-
-### Restaurants
-
-```text
-GET    /restaurants
-GET    /restaurants/{id}
-POST   /restaurants
-PUT    /restaurants/{id}
-DELETE /restaurants/{id}
-```
-
-### NGOs
-
-```text
-GET    /ngos
-GET    /ngos/{id}
-POST   /ngos
-PUT    /ngos/{id}
-DELETE /ngos/{id}
-```
-
-### Food Listings
-
-```text
-GET    /food
-GET    /food/{id}
-POST   /food
-PUT    /food/{id}
-DELETE /food/{id}
-```
-
-### Matching
-
-```text
-GET  /matches
-POST /matches
-POST /matches/match-food/{foodId}
-```
-
-### Analytics
-
-```text
-GET /analytics
-```
-
-### Machine Learning
-
-```text
-POST /ml/predict-match
-```
-
----
-
-# API Documentation
-
-When the Spring Boot backend is running, Swagger/OpenAPI documentation is available at:
-
-```text
-http://localhost:8080/swagger-ui/index.html
-```
-
-The ML service also provides FastAPI's interactive API documentation at:
-
+Interactive docs (once running):
 ```text
 http://localhost:8000/docs
 ```
 
----
+### Training (`ml-service/train.py`)
+`train.py` generates a synthetic dataset (100 restaurants, 50 NGOs, 1,000 food listings, cross-joined into candidate pairs), engineers the features above, fits a `CatBoostClassifier` (1000 iterations, depth 8, learning rate 0.03), evaluates it, and serializes the model bundle to `zerowaste_match_model.pkl`. Run it whenever you need to (re)generate the model file that `app.py` expects to find alongside it.
 
-# Running the Project
-
-## 1. PostgreSQL
-
-Create a PostgreSQL database and configure the Spring Boot database connection.
-
-Do **not** commit database passwords or other credentials to GitHub.
-
-Use environment variables or a local configuration file.
+> ⚠️ The model is trained entirely on **synthetic data** for demonstration/integration purposes. Performance numbers from this dataset should not be treated as real-world accuracy, and the model would need to be retrained on real donation/matching data before production use.
 
 ---
 
-## 2. Start the Spring Boot Backend
+##  Frontend
 
-From the backend directory:
+A React (Vite) single-page app with a sidebar layout (`Layout.jsx`) and pages for Dashboard, Restaurants, NGOs, Food Listings, Matching, and Analytics.
 
+Highlights:
+- `src/api.js` wraps all backend calls with `axios` (`baseURL: http://localhost:8080`).
+- Forms for **Restaurants**, **NGOs**, and **Food Listings** support create/edit/delete against the corresponding CRUD endpoints.
+- **NGOs** and **Food Listings** forms can auto-fill latitude/longitude either from the browser's GPS (`navigator.geolocation`) or by looking up a typed address via the free OpenStreetMap Nominatim API.
+- **Matching** page lists available (non-matched) food and lets you trigger the rule-based `POST /matches/match-food/{id}` auto-match, plus a match history table.
+- **Analytics** page renders supply-vs-demand, category distribution, match-quality distribution, and surplus-recovery charts with Chart.js, backed by `/analytics`, `/restaurants`, `/ngos`, `/food`, and `/matches`.
+
+---
+
+##  Running the Project
+
+### 1. PostgreSQL
+
+Create a database (default name used in `application.properties` is `zerowaste_db`) and update the connection settings in:
+```text
+ZeroWaste_backend/src/main/resources/application.properties
+```
+**Do not commit real database credentials.** Use environment variables or a local, git-ignored properties override instead of hardcoding them.
+
+### 2. Start the Spring Boot backend
+
+From `ZeroWaste_backend/`:
 ```bash
 ./mvnw spring-boot:run
 ```
-
 On Windows:
-
 ```bash
 mvnw.cmd spring-boot:run
 ```
+Runs by default on `http://localhost:8080`.
 
-The backend runs by default on:
+### 3. Start the ML service
 
-```text
-http://localhost:8080
-```
-
----
-
-## 3. Start the ML Service
-
-Create a Python virtual environment:
-
+From `ml-service/`:
 ```bash
 python -m venv venv
 ```
-
-Activate it.
-
-Windows:
-
-```bash
-venv\Scripts\activate
-```
-
-Install dependencies:
-
+Activate it (Windows: `venv\Scripts\activate`, macOS/Linux: `source venv/bin/activate`), then:
 ```bash
 pip install -r requirements.txt
+python train.py          # only needed if zerowaste_match_model.pkl doesn't exist yet
+uvicorn app:app --reload
 ```
+Runs by default on `http://localhost:8000`.
 
-Start FastAPI:
+### 4. Start the frontend
 
-```bash
-uvicorn main:app --reload
-```
-
-The ML service runs by default on:
-
-```text
-http://localhost:8000
-```
-
----
-
-## 4. Start the Frontend
-
-From the frontend directory:
-
+From `ZeroWaste_frontend/`:
 ```bash
 npm install
-```
-
-Then:
-
-```bash
 npm run dev
 ```
+Vite will print the local dev URL (default `http://localhost:5173`).
 
-Vite will provide the local frontend URL.
-
----
-
-# Environment Variables
-
-Sensitive configuration should not be committed.
-
-For example:
-
-```env
-DB_URL=jdbc:postgresql://localhost:5432/zerowaste
-DB_USERNAME=your_username
-DB_PASSWORD=your_password
-ML_SERVICE_URL=http://localhost:8000
-```
-
-A `.env.example` or equivalent configuration template should be committed instead of the actual credentials.
+> The backend's CORS config (`CorsConfig.java`) currently only allows requests from `http://localhost:5173`, so update it if you serve the frontend from a different origin/port.
 
 ---
 
-# Current Development Status
+##  Environment & Configuration Notes
 
-### Completed / In Progress
-
-* [x] React frontend setup
-* [x] Spring Boot backend
-* [x] PostgreSQL integration
-* [x] Restaurant CRUD
-* [x] NGO CRUD
-* [x] Food listing CRUD
-* [x] Matching endpoints
-* [x] Analytics endpoint
-* [x] Synthetic ML dataset
-* [x] CatBoost match prediction model
-* [x] Model evaluation
-* [x] Model serialization
-* [x] FastAPI ML service
-* [x] Spring Boot → FastAPI integration
-* [ ] Complete ML-powered automatic matching workflow
-* [ ] Frontend integration of ML predictions
-* [ ] Final end-to-end testing
-* [ ] Production deployment
+- `ZeroWaste_backend/src/main/resources/application.properties` currently contains placeholder local-dev database credentials. Replace these with environment-specific values (or externalize via env vars / Spring profiles) before deploying anywhere shared.
+- `RestClientConfig.java` points the backend's ML client at `http://localhost:8000` — update this if the ML service runs elsewhere.
+- The frontend's `API_BASE_URL` in `src/api.js` points at `http://localhost:8080` — update for non-local deployments.
 
 ---
 
-# Dataset and Model Disclaimer
+##  Current Development Status
 
-The current machine-learning model is trained on **synthetically generated data**.
-
-The synthetic dataset is intended for:
-
-* Development
-* Demonstration
-* Model integration
-* Testing
-* Academic/project evaluation
-
-It does not represent actual food donation behavior or real-world NGO demand.
-
-Real-world deployment would require collecting and validating historical food donation and matching data.
-
----
-
-# Future Improvements
-
-Potential future improvements include:
-
-* Real historical matching data
-* Improved match-ranking algorithms
-* Real-time NGO availability
-* More accurate demand prediction
-* Route and delivery optimization
-* Expiry-aware prioritization
-* Notification system
-* Authentication and authorization
-* Restaurant and NGO dashboards
-* Deployment using Docker
-* Cloud deployment
-* Model monitoring and retraining
+- [x] React frontend (Dashboard, Restaurants, NGOs, Food Listings, Matching, Analytics)
+- [x] Spring Boot backend with Restaurant/NGO/Food Listing CRUD
+- [x] Rule-based auto-matching (`MatchingService`)
+- [x] Analytics endpoint
+- [x] Synthetic ML dataset generation and CatBoost training pipeline
+- [x] FastAPI ML service with `/predict-match`
+- [x] Spring Boot → FastAPI integration (`MLPredictionService`)
+- [ ] Wiring ML predictions into the automatic matching workflow (currently the rule-based and ML paths are separate)
+- [ ] Frontend surfacing of ML match probabilities
+- [ ] Authentication and authorization
+- [ ] Dockerized / cloud deployment
+- [ ] End-to-end testing across all three services
 
 ---
 
-# Project
+##  Future Improvements
 
-**ZeroWaste Connect**
+- Real historical donation/matching data to replace the synthetic training set
+- Combine the rule-based score and ML probability into a single ranked recommendation
+- Real-time NGO availability and notification system
+- Route/delivery optimization and expiry-aware prioritization
+- Restaurant and NGO authenticated dashboards
+- Docker Compose setup for all three services
+- Model monitoring and periodic retraining
 
-A full-stack food-waste management and intelligent matching platform.
+---
 
-Built using:
+##  Authors
 
-```text
-React
-Spring Boot
-PostgreSQL
-Python
-FastAPI
-CatBoost
-```
-
+- Hemant Murkute
+- Sarth Nagnath
+- Venketesh Gophane
