@@ -87,10 +87,7 @@ env/
 # Temporary model files
 *.joblib
 
-# IMPORTANT:
-# Do NOT ignore *.pkl because our trained model
-# is intentionally tracked in the repository.
-
+*.pkl
 
 # ==========================================
 # LOCAL DATABASE / SECRETS

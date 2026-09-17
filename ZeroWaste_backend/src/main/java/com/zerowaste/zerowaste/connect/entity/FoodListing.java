@@ -25,6 +25,8 @@ public class FoodListing {
     private Double latitude;
 
     private Double longitude;
+    
+    private String status = "AVAILABLE";
 
     public FoodListing() {
     }
@@ -64,6 +66,10 @@ public class FoodListing {
     public Double getLongitude() {
         return longitude;
     }
+    
+    public String getStatus() {
+    	return status; 
+    }
 
     public void setFoodName(String foodName) {
         this.foodName = foodName;
@@ -95,5 +101,9 @@ public class FoodListing {
 
     public void setLongitude(Double longitude) {
         this.longitude = longitude;
+    }
+    
+    public void setStatus(String status) { 
+    	this.status = status;
     }
 }

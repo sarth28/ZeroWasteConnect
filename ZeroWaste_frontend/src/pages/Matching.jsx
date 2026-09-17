@@ -46,7 +46,9 @@ function Matching() {
     }
   };
 
-  const availableFood = foodListings;
+  const availableFood = foodListings.filter(
+    (food) => !food.status || food.status.toUpperCase() === 'AVAILABLE'
+  );
 
   return (
     <div>

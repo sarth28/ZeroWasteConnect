@@ -10,6 +10,8 @@ function NGOs() {
   const [ngos, setNGOs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [addressGeoLoading, setAddressGeoLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
@@ -24,6 +26,16 @@ function NGOs() {
     latitude: '',
     longitude: '',
   });
+
+  const categories = [
+    'Baked Goods',
+    'Prepared Meals',
+    'Vegetables',
+    'Fruits',
+    'Dairy',
+    'Canned Goods',
+    'Any',
+  ];
 
   useEffect(() => {
     fetchNGOs();
@@ -48,6 +60,69 @@ function NGOs() {
     });
   };
 
+  // 1. Browser Geolocation (Current device location)
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setError('Geolocation is not supported by your browser');
+      return;
+    }
+
+    setGeoLoading(true);
+    setError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setFormData((prev) => ({
+          ...prev,
+          latitude: position.coords.latitude.toFixed(6),
+          longitude: position.coords.longitude.toFixed(6),
+        }));
+        setGeoLoading(false);
+        setSuccess('Fetched current coordinates successfully!');
+      },
+      (err) => {
+        setError(`Unable to retrieve location: ${err.message}`);
+        setGeoLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  // 2. Geocode from Location Name (Free OpenStreetMap API)
+  const handleLookupLocation = async () => {
+    if (!formData.location.trim()) {
+      setError('Please enter a location name first to lookup coordinates');
+      return;
+    }
+
+    setAddressGeoLoading(true);
+    setError(null);
+
+    try {
+      const query = encodeURIComponent(formData.location.trim());
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`
+      );
+      const data = await res.json();
+
+      if (data && data.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          latitude: parseFloat(data[0].lat).toFixed(6),
+          longitude: parseFloat(data[0].lon).toFixed(6),
+        }));
+        setSuccess(`Found coordinates for "${data[0].display_name.slice(0, 40)}..."`);
+      } else {
+        setError('Location not found. Try adding a city name (e.g., "Shivajinagar, Pune")');
+      }
+    } catch (err) {
+      setError('Failed to fetch coordinates for this location.');
+      console.error(err);
+    } finally {
+      setAddressGeoLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -56,7 +131,6 @@ function NGOs() {
     setSuccess(null);
 
     try {
-      // Convert numeric fields from strings to numbers
       const data = {
         name: formData.name,
         location: formData.location,
@@ -77,14 +151,8 @@ function NGOs() {
 
       resetForm();
       await fetchNGOs();
-
     } catch (err) {
-      setError(
-        editingId
-          ? 'Failed to update NGO'
-          : 'Failed to add NGO'
-      );
-
+      setError(editingId ? 'Failed to update NGO' : 'Failed to add NGO');
       console.error(err);
     } finally {
       setSubmitting(false);
@@ -120,24 +188,16 @@ function NGOs() {
   };
 
   const handleDelete = async (id) => {
-    const confirmed = window.confirm(
-      'Are you sure you want to delete this NGO?'
-    );
-
-    if (!confirmed) {
-      return;
-    }
+    const confirmed = window.confirm('Are you sure you want to delete this NGO?');
+    if (!confirmed) return;
 
     setError(null);
     setSuccess(null);
 
     try {
       await deleteNGO(id);
-
       setSuccess('NGO deleted successfully!');
-
       await fetchNGOs();
-
     } catch (err) {
       setError('Failed to delete NGO');
       console.error(err);
@@ -146,7 +206,6 @@ function NGOs() {
 
   const resetForm = () => {
     setEditingId(null);
-
     setFormData({
       name: '',
       location: '',
@@ -167,31 +226,16 @@ function NGOs() {
 
       {/* Add / Edit NGO Form */}
       <div className="form-section">
-        <h5>
-          {editingId ? 'Edit NGO' : 'Add New NGO'}
-        </h5>
+        <h5>{editingId ? 'Edit NGO' : 'Add New NGO'}</h5>
 
-        {error && (
-          <div className="alert alert-danger">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="alert alert-success">
-            {success}
-          </div>
-        )}
+        {error && <div className="alert alert-danger">{error}</div>}
+        {success && <div className="alert alert-success">{success}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="row g-3">
-
             {/* Name */}
-            <div className="col-md-4">
-              <label className="form-label">
-                NGO Name
-              </label>
-
+            <div className="col-md-6">
+              <label className="form-label">NGO Name</label>
               <input
                 type="text"
                 className="form-control"
@@ -199,33 +243,38 @@ function NGOs() {
                 value={formData.name}
                 onChange={handleChange}
                 required
-                placeholder="Enter NGO name"
+                placeholder="e.g. Robin Hood Army"
               />
             </div>
 
-            {/* Location */}
-            <div className="col-md-4">
-              <label className="form-label">
-                Location
-              </label>
-
-              <input
-                type="text"
-                className="form-control"
-                name="location"
-                value={formData.location}
-                onChange={handleChange}
-                required
-                placeholder="Enter location"
-              />
+            {/* Location with Auto-Geocode Button */}
+            <div className="col-md-6">
+              <label className="form-label">Location / Address</label>
+              <div className="input-group">
+                <input
+                  type="text"
+                  className="form-control"
+                  name="location"
+                  value={formData.location}
+                  onChange={handleChange}
+                  required
+                  placeholder="e.g. Kothrud, Pune"
+                />
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={handleLookupLocation}
+                  disabled={addressGeoLoading}
+                  title="Search coordinates based on this location text"
+                >
+                  {addressGeoLoading ? 'Searching...' : '🔍 Find Coords'}
+                </button>
+              </div>
             </div>
 
             {/* Capacity */}
             <div className="col-md-4">
-              <label className="form-label">
-                Capacity
-              </label>
-
+              <label className="form-label">Total Capacity (Meals)</label>
               <input
                 type="number"
                 className="form-control"
@@ -234,16 +283,13 @@ function NGOs() {
                 onChange={handleChange}
                 required
                 min="0"
-                placeholder="Enter capacity"
+                placeholder="e.g. 200"
               />
             </div>
 
             {/* Current Demand */}
             <div className="col-md-4">
-              <label className="form-label">
-                Current Demand
-              </label>
-
+              <label className="form-label">Current Demand (Meals)</label>
               <input
                 type="number"
                 className="form-control"
@@ -252,67 +298,80 @@ function NGOs() {
                 onChange={handleChange}
                 required
                 min="0"
-                placeholder="Enter current demand"
+                placeholder="e.g. 50"
               />
             </div>
 
             {/* Category Preference */}
             <div className="col-md-4">
-              <label className="form-label">
-                Category Preference
-              </label>
-
-              <input
-                type="text"
-                className="form-control"
+              <label className="form-label">Category Preference</label>
+              <select
+                className="form-select"
                 name="categoryPreference"
                 value={formData.categoryPreference}
                 onChange={handleChange}
                 required
-                placeholder="e.g. Vegetarian"
-              />
+              >
+                <option value="">Select preference</option>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Coordinates Section */}
+            <div className="col-12 mt-3">
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <label className="form-label mb-0">Location Coordinates</label>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-success"
+                  onClick={handleGetCurrentLocation}
+                  disabled={geoLoading}
+                >
+                  {geoLoading ? 'Detecting...' : '📍 Use Current GPS Location'}
+                </button>
+              </div>
             </div>
 
             {/* Latitude */}
-            <div className="col-md-2">
-              <label className="form-label">
-                Latitude
-              </label>
-
-              <input
-                type="number"
-                step="any"
-                className="form-control"
-                name="latitude"
-                value={formData.latitude}
-                onChange={handleChange}
-                required
-                placeholder="Latitude"
-              />
+            <div className="col-md-6">
+              <div className="input-group">
+                <span className="input-group-text">Lat</span>
+                <input
+                  type="number"
+                  step="any"
+                  className="form-control"
+                  name="latitude"
+                  value={formData.latitude}
+                  onChange={handleChange}
+                  required
+                  placeholder="e.g. 18.520430"
+                />
+              </div>
             </div>
 
             {/* Longitude */}
-            <div className="col-md-2">
-              <label className="form-label">
-                Longitude
-              </label>
-
-              <input
-                type="number"
-                step="any"
-                className="form-control"
-                name="longitude"
-                value={formData.longitude}
-                onChange={handleChange}
-                required
-                placeholder="Longitude"
-              />
+            <div className="col-md-6">
+              <div className="input-group">
+                <span className="input-group-text">Lon</span>
+                <input
+                  type="number"
+                  step="any"
+                  className="form-control"
+                  name="longitude"
+                  value={formData.longitude}
+                  onChange={handleChange}
+                  required
+                  placeholder="e.g. 73.856743"
+                />
+              </div>
             </div>
-
           </div>
 
-          <div className="mt-3">
-
+          <div className="mt-4">
             <button
               type="submit"
               className="btn btn-primary me-2"
@@ -321,8 +380,8 @@ function NGOs() {
               {submitting
                 ? 'Saving...'
                 : editingId
-                  ? 'Update NGO'
-                  : 'Add NGO'}
+                ? 'Update NGO'
+                : 'Add NGO'}
             </button>
 
             {editingId && (
@@ -335,40 +394,25 @@ function NGOs() {
                 Cancel
               </button>
             )}
-
           </div>
         </form>
       </div>
 
       {/* NGO List */}
       <div className="content-card">
-        <h5>
-          All NGOs ({ngos.length})
-        </h5>
+        <h5>All NGOs ({ngos.length})</h5>
 
         {loading ? (
           <div className="loading-spinner">
-            <div
-              className="spinner-border"
-              role="status"
-            >
-              <span className="visually-hidden">
-                Loading...
-              </span>
+            <div className="spinner-border" role="status">
+              <span className="visually-hidden">Loading...</span>
             </div>
           </div>
-
         ) : ngos.length === 0 ? (
-
-          <div className="empty-state">
-            No NGOs registered yet
-          </div>
-
+          <div className="empty-state">No NGOs registered yet</div>
         ) : (
-
           <div className="table-responsive">
             <table className="table">
-
               <thead>
                 <tr>
                   <th>ID</th>
@@ -376,78 +420,48 @@ function NGOs() {
                   <th>Location</th>
                   <th>Capacity</th>
                   <th>Demand</th>
-                  <th>Category</th>
-                  <th>Latitude</th>
-                  <th>Longitude</th>
+                  <th>Preference</th>
+                  <th>Coordinates</th>
                   <th>Actions</th>
                 </tr>
               </thead>
-
               <tbody>
-
                 {ngos.map((ngo) => (
                   <tr key={ngo.id}>
-
+                    <td>#{ngo.id}</td>
+                    <td><strong>{ngo.name}</strong></td>
+                    <td>{ngo.location}</td>
+                    <td>{ngo.capacity}</td>
+                    <td>{ngo.currentDemand}</td>
                     <td>
-                      #{ngo.id}
+                      <span className="badge badge-info">
+                        {ngo.categoryPreference}
+                      </span>
                     </td>
-
                     <td>
-                      {ngo.name}
+                      <small className="text-muted">
+                        {ngo.latitude?.toFixed(4)}, {ngo.longitude?.toFixed(4)}
+                      </small>
                     </td>
-
                     <td>
-                      {ngo.location}
-                    </td>
-
-                    <td>
-                      {ngo.capacity}
-                    </td>
-
-                    <td>
-                      {ngo.currentDemand}
-                    </td>
-
-                    <td>
-                      {ngo.categoryPreference}
-                    </td>
-
-                    <td>
-                      {ngo.latitude}
-                    </td>
-
-                    <td>
-                      {ngo.longitude}
-                    </td>
-
-                    <td>
-
                       <button
                         className="btn btn-sm btn-outline-primary me-2"
                         onClick={() => handleEdit(ngo)}
                       >
                         Edit
                       </button>
-
                       <button
                         className="btn btn-sm btn-outline-danger"
-                        onClick={() =>
-                          handleDelete(ngo.id)
-                        }
+                        onClick={() => handleDelete(ngo.id)}
                       >
                         Delete
                       </button>
-
                     </td>
-
                   </tr>
                 ))}
-
               </tbody>
-
             </table>
           </div>
-
         )}
       </div>
     </div>

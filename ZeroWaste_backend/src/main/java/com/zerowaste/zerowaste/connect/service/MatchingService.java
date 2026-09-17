@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import com.zerowaste.zerowaste.connect.entity.FoodListing;
 import com.zerowaste.zerowaste.connect.entity.MatchRecord;
 import com.zerowaste.zerowaste.connect.entity.NGO;
-
 import com.zerowaste.zerowaste.connect.repository.FoodListingRepository;
 import com.zerowaste.zerowaste.connect.repository.MatchRecordRepository;
 import com.zerowaste.zerowaste.connect.repository.NGORepository;
@@ -53,12 +52,52 @@ public class MatchingService {
 
     public MatchRecord matchFood(Long foodId) {
 
-        FoodListing food =
-                foodRepository.findById(foodId).orElse(null);
+        // --------------------------------------------------
+        // 1. Check whether food listing exists
+        // --------------------------------------------------
+
+        FoodListing food = foodRepository.findById(foodId).orElse(null);
 
         if (food == null) {
             return null;
         }
+
+        // --------------------------------------------------
+        // 2. Validate food data required for matching
+        // --------------------------------------------------
+
+        if (food.getQuantity() == null || food.getQuantity() <= 0) {
+            throw new IllegalArgumentException(
+                    "Food quantity must be greater than 0"
+            );
+        }
+
+        if (food.getLatitude() == null || food.getLongitude() == null) {
+            throw new IllegalArgumentException(
+                    "Food latitude and longitude are required for matching"
+            );
+        }
+
+        // --------------------------------------------------
+        // 3. Check whether this food is already matched
+        // --------------------------------------------------
+
+        List<MatchRecord> existingMatches =
+                matchRepository.findByFoodListingId(foodId);
+
+        boolean alreadyMatched = existingMatches.stream()
+                .anyMatch(match ->
+                        "MATCHED".equalsIgnoreCase(match.getStatus()));
+
+        if (alreadyMatched) {
+            throw new IllegalStateException(
+                    "This food listing has already been matched"
+            );
+        }
+
+        // --------------------------------------------------
+        // 4. Get all NGOs
+        // --------------------------------------------------
 
         List<NGO> ngos = ngoRepository.findAll();
 
@@ -66,15 +105,25 @@ public class MatchingService {
             return null;
         }
 
-        NGO selectedNGO = null;
+        // --------------------------------------------------
+        // 5. Find best NGO
+        // --------------------------------------------------
 
+        NGO selectedNGO = null;
         double highestScore = -1;
 
         for (NGO ngo : ngos) {
 
-            // --------------------------------
-            // AVAILABLE CAPACITY
-            // --------------------------------
+            // Skip invalid NGO records
+            if (ngo.getCapacity() == null
+                    || ngo.getCurrentDemand() == null) {
+                continue;
+            }
+
+            if (ngo.getLatitude() == null
+                    || ngo.getLongitude() == null) {
+                continue;
+            }
 
             int availableCapacity =
                     ngo.getCapacity() - ngo.getCurrentDemand();
@@ -84,51 +133,60 @@ public class MatchingService {
                 continue;
             }
 
-            // --------------------------------
-            // CAPACITY SCORE (0-35)
-            // --------------------------------
+            // --------------------------------------------------
+            // Capacity score
+            // --------------------------------------------------
 
             double capacityRatio =
                     Math.min(
-                            (double) availableCapacity
-                                    / food.getQuantity(),
-                            1.0);
+                            (double) availableCapacity / food.getQuantity(),
+                            1.0
+                    );
 
-            double capacityScore =
-                    capacityRatio * 35;
+            double capacityScore = capacityRatio * 35;
 
-            // Demand Score (0-30)
+            // --------------------------------------------------
+            // Demand score
+            // --------------------------------------------------
 
             double demandScore =
-                    ((double) ngo.getCurrentDemand()
-                            / 100.0) * 30;
+                    Math.min(
+                            ((double) ngo.getCurrentDemand() / 100.0) * 30,
+                            30
+                    );
 
-            // Category Score (0 or 15)
+            // --------------------------------------------------
+            // Category score
+            // --------------------------------------------------
 
             double categoryScore = 0;
 
             if (food.getCategory() != null
                     && ngo.getCategoryPreference() != null
                     && food.getCategory()
-                            .equalsIgnoreCase(
-                                    ngo.getCategoryPreference())) {
+                          .equalsIgnoreCase(
+                                  ngo.getCategoryPreference())) {
 
                 categoryScore = 15;
             }
 
-            // Distance Score (0-20)
+            // --------------------------------------------------
+            // Distance score
+            // --------------------------------------------------
 
-            double distance =
-                    calculateDistance(
-                            food.getLatitude(),
-                            food.getLongitude(),
-                            ngo.getLatitude(),
-                            ngo.getLongitude());
+            double distance = calculateDistance(
+                    food.getLatitude(),
+                    food.getLongitude(),
+                    ngo.getLatitude(),
+                    ngo.getLongitude()
+            );
 
             double distanceScore =
                     Math.max(0, 20 - (distance * 10));
 
-            // Final Score
+            // --------------------------------------------------
+            // Total score
+            // --------------------------------------------------
 
             double totalScore =
                     capacityScore
@@ -139,27 +197,42 @@ public class MatchingService {
             if (totalScore > highestScore) {
 
                 highestScore = totalScore;
-
                 selectedNGO = ngo;
             }
         }
 
+        // --------------------------------------------------
+        // 6. No suitable NGO found
+        // --------------------------------------------------
+
+        if (selectedNGO == null) {
+            return null;
+        }
+
+        // --------------------------------------------------
+        // 7. Create match
+        // --------------------------------------------------
+
         MatchRecord match = new MatchRecord();
 
         match.setFoodListingId(food.getId());
-
         match.setNgoId(selectedNGO.getId());
-
         match.setStatus("MATCHED");
 
         match.setMatchScore(
-                Math.round(highestScore * 100.0) / 100.0);
+                Math.round(highestScore * 100.0) / 100.0
+        );
 
         match.setMatchingReason(
-                "Selected based on capacity, demand, category suitability and distance");
+                "Selected based on capacity, demand, "
+                + "category suitability and distance"
+        );
 
         match.setMatchedAt(LocalDateTime.now());
 
+        food.setStatus("MATCHED");
+        foodRepository.save(food);
+        
         return matchRepository.save(match);
     }
 }

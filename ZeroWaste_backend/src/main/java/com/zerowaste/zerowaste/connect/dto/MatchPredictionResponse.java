@@ -1,8 +1,13 @@
 package com.zerowaste.zerowaste.connect.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class MatchPredictionResponse {
 
+    @JsonProperty("match_probability")
     private Double match_probability;
+
+    @JsonProperty("match_prediction")
     private Integer match_prediction;
 
     public MatchPredictionResponse() {

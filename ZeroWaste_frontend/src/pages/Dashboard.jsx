@@ -48,11 +48,11 @@ function Dashboard() {
   }
 
   const kpis = [
-    { label: 'Total Restaurants', value: analytics?.totalRestaurants || 0, icon: '🍽️' },
-    { label: 'Total NGOs', value: analytics?.totalNGOs || 0, icon: '🏛️' },
-    { label: 'Food Listings', value: analytics?.totalFoodListings || 0, icon: '📦' },
-    { label: 'Matches', value: analytics?.totalMatches || 0, icon: '🔗' },
-    { label: 'Food Saved (kg)', value: analytics?.foodSaved || 0, icon: '🌱' },
+    { label: 'Total Restaurants', value: analytics?.restaurants || 0, icon: '🍽️' },
+    { label: 'Total NGOs', value: analytics?.ngos || 0, icon: '🏛️' },
+    { label: 'Food Listings', value: analytics?.foodListings || 0, icon: '📦' },
+    { label: 'Matches', value: analytics?.matches || 0, icon: '🔗' },
+    { label: 'Food Saved (kg)', value: analytics?.foodSavedKg || 0, icon: '🌱' },
   ];
 
   return (
@@ -93,7 +93,7 @@ function Dashboard() {
                 <tbody>
                   {recentFood.map((food) => (
                     <tr key={food.id}>
-                      <td>{food.name}</td>
+                      <td>{food.foodName}</td>
                       <td>{food.quantity}</td>
                       <td>{food.category}</td>
                       <td>
@@ -129,7 +129,7 @@ function Dashboard() {
                   {recentMatches.map((match) => (
                     <tr key={match.id}>
                       <td>#{match.id}</td>
-                      <td>{match.foodId}</td>
+                      <td>#{match.foodListingId}</td>
                       <td>{match.ngoId}</td>
                       <td>{match.matchScore?.toFixed(2) || '-'}</td>
                     </tr>
