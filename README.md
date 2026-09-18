@@ -336,7 +336,8 @@ From `ml-service/`:
 ```bash
 python -m venv venv
 ```
-Activate it (Windows: `venv\Scripts\activate`, macOS/Linux: `source venv/bin/activate`), then:
+Activate it 
+(Windows: `venv\Scripts\activate`, macOS/Linux: `source venv/bin/activate`), then:
 ```bash
 pip install -r requirements.txt
 python train.py          # only needed if zerowaste_match_model.pkl doesn't exist yet
