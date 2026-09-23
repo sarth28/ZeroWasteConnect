@@ -5,7 +5,7 @@ import './App.css';
 import { AuthProvider } from './auth/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
-
+import Analytics from './pages/Analytics';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -22,7 +22,7 @@ function App() {
           {/* Public */}
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
-
+          <Route path="/analytics" element={<Analytics />} />
           {/* Authenticated application */}
           <Route
             element={

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Chart as ChartJS,
   ArcElement,
@@ -33,6 +34,8 @@ ChartJS.register(
 );
 
 function Analytics() {
+  const navigate = useNavigate();
+
   const [analytics, setAnalytics] = useState(null);
   const [restaurants, setRestaurants] = useState([]);
   const [ngos, setNGOs] = useState([]);
@@ -94,11 +97,31 @@ function Analytics() {
 
   // --- 1. KPI CARDS ---
   const kpis = [
-    { label: 'Active Restaurants', value: analytics?.restaurants || 0, icon: '🍽️' },
-    { label: 'Partner NGOs', value: analytics?.ngos || 0, icon: '🏛️' },
-    { label: 'Food Listings', value: analytics?.foodListings || 0, icon: '📦' },
-    { label: 'Matches Completed', value: analytics?.matches || 0, icon: '🔗' },
-    { label: 'Food Saved (kg)', value: analytics?.foodSavedKg || 0, icon: '🌱' },
+    {
+      label: 'Active Restaurants',
+      value: analytics?.restaurants || 0,
+      icon: ''
+    },
+    {
+      label: 'Partner NGOs',
+      value: analytics?.ngos || 0,
+      icon: ''
+    },
+    {
+      label: 'Food Listings',
+      value: analytics?.foodListings || 0,
+      icon: ''
+    },
+    {
+      label: 'Matches Completed',
+      value: analytics?.matches || 0,
+      icon: ''
+    },
+    {
+      label: 'Food Saved (kg)',
+      value: analytics?.foodSavedKg || 0,
+      icon: ''
+    },
   ];
 
   // --- 2. CHART: SUPPLY VS DEMAND BY CATEGORY ---
@@ -113,6 +136,7 @@ function Analytics() {
 
   const categorySupply = {};
   const categoryDemand = {};
+
   allCategories.forEach((cat) => {
     categorySupply[cat] = 0;
     categoryDemand[cat] = 0;
@@ -120,17 +144,25 @@ function Analytics() {
 
   foodListings.forEach((f) => {
     const cat = f.category || 'Other';
-    categorySupply[cat] = (categorySupply[cat] || 0) + (Number(f.quantity) || 0);
+    categorySupply[cat] =
+      (categorySupply[cat] || 0) + (Number(f.quantity) || 0);
   });
 
   ngos.forEach((n) => {
     const pref = n.categoryPreference || 'Other';
+
     if (pref === 'Any') {
       allCategories.forEach((cat) => {
-        categoryDemand[cat] = (categoryDemand[cat] || 0) + Math.round((Number(n.currentDemand) || 0) / allCategories.length);
+        categoryDemand[cat] =
+          (categoryDemand[cat] || 0) +
+          Math.round(
+            (Number(n.currentDemand) || 0) / allCategories.length
+          );
       });
     } else {
-      categoryDemand[pref] = (categoryDemand[pref] || 0) + (Number(n.currentDemand) || 0);
+      categoryDemand[pref] =
+        (categoryDemand[pref] || 0) +
+        (Number(n.currentDemand) || 0);
     }
   });
 
@@ -170,16 +202,21 @@ function Analytics() {
 
   // --- 3. CHART: CATEGORY DISTRIBUTION (PIE) ---
   const categoryCount = {};
+
   foodListings.forEach((food) => {
     const cat = food.category || 'Other';
     categoryCount[cat] = (categoryCount[cat] || 0) + 1;
   });
 
   const pieData = {
-    labels: Object.keys(categoryCount).length ? Object.keys(categoryCount) : ['No Data'],
+    labels: Object.keys(categoryCount).length
+      ? Object.keys(categoryCount)
+      : ['No Data'],
     datasets: [
       {
-        data: Object.keys(categoryCount).length ? Object.values(categoryCount) : [1],
+        data: Object.keys(categoryCount).length
+          ? Object.values(categoryCount)
+          : [1],
         backgroundColor: [
           '#2e7d32',
           '#43a047',
@@ -209,13 +246,25 @@ function Analytics() {
   };
 
   // --- 4. CHART: MATCH SCORE QUALITY DISTRIBUTION ---
-  const scoreBuckets = { '0-25%': 0, '26-50%': 0, '51-75%': 0, '76-100%': 0 };
+  const scoreBuckets = {
+    '0-25%': 0,
+    '26-50%': 0,
+    '51-75%': 0,
+    '76-100%': 0
+  };
+
   matches.forEach((m) => {
     const score = Number(m.matchScore) || 0;
-    if (score <= 25) scoreBuckets['0-25%']++;
-    else if (score <= 50) scoreBuckets['26-50%']++;
-    else if (score <= 75) scoreBuckets['51-75%']++;
-    else scoreBuckets['76-100%']++;
+
+    if (score <= 25) {
+      scoreBuckets['0-25%']++;
+    } else if (score <= 50) {
+      scoreBuckets['26-50%']++;
+    } else if (score <= 75) {
+      scoreBuckets['51-75%']++;
+    } else {
+      scoreBuckets['76-100%']++;
+    }
   });
 
   const qualityScoreData = {
@@ -224,7 +273,12 @@ function Analytics() {
       {
         label: 'Number of Matches',
         data: Object.values(scoreBuckets),
-        backgroundColor: ['#ef5350', '#ffb74d', '#66bb6a', '#2e7d32'],
+        backgroundColor: [
+          '#ef5350',
+          '#ffb74d',
+          '#66bb6a',
+          '#2e7d32'
+        ],
         borderRadius: 6,
       },
     ],
@@ -242,18 +296,29 @@ function Analytics() {
       },
     },
     scales: {
-      y: { beginAtZero: true, ticks: { stepSize: 1 } },
+      y: {
+        beginAtZero: true,
+        ticks: { stepSize: 1 }
+      },
     },
   };
 
-  // --- 5. REPLACEMENT CHART: FOOD RESCUE RECOVERY RATE (DOUGHNUT) ---
-  const matchedFoodIds = new Set(matches.map((m) => m.foodListingId));
+  // --- 5. FOOD RESCUE RECOVERY RATE (DOUGHNUT) ---
+  const matchedFoodIds = new Set(
+    matches.map((m) => m.foodListingId)
+  );
+
   let matchedUnits = 0;
   let uncollectedUnits = 0;
 
   foodListings.forEach((item) => {
     const qty = Number(item.quantity) || 0;
-    if (matchedFoodIds.has(item.id) || (item.status && item.status.toUpperCase() === 'MATCHED')) {
+
+    if (
+      matchedFoodIds.has(item.id) ||
+      (item.status &&
+        item.status.toUpperCase() === 'MATCHED')
+    ) {
       matchedUnits += qty;
     } else {
       uncollectedUnits += qty;
@@ -261,10 +326,16 @@ function Analytics() {
   });
 
   const recoveryData = {
-    labels: ['Rescued / Matched Units', 'Unclaimed Surplus Units'],
+    labels: [
+      'Rescued / Matched Units',
+      'Unclaimed Surplus Units'
+    ],
     datasets: [
       {
-        data: (matchedUnits === 0 && uncollectedUnits === 0) ? [1, 0] : [matchedUnits, uncollectedUnits],
+        data:
+          matchedUnits === 0 && uncollectedUnits === 0
+            ? [1, 0]
+            : [matchedUnits, uncollectedUnits],
         backgroundColor: ['#2e7d32', '#ef5350'],
         borderWidth: 2,
         borderColor: '#fff',
@@ -272,9 +343,14 @@ function Analytics() {
     ],
   };
 
-  const recoveryRatePct = (matchedUnits + uncollectedUnits) > 0
-    ? Math.round((matchedUnits / (matchedUnits + uncollectedUnits)) * 100)
-    : 0;
+  const recoveryRatePct =
+    matchedUnits + uncollectedUnits > 0
+      ? Math.round(
+          (matchedUnits /
+            (matchedUnits + uncollectedUnits)) *
+            100
+        )
+      : 0;
 
   const recoveryOptions = {
     responsive: true,
@@ -291,49 +367,153 @@ function Analytics() {
   };
 
   return (
-    <div>
+    <div className="analytics-page">
+
+      {/* =========================
+          ANALYTICS NAVBAR
+      ========================= */}
+      <nav className="analytics-navbar">
+
+        <div
+          className="analytics-brand"
+          onClick={() => navigate('/')}
+        >
+          <span className="analytics-brand-icon">🌱</span>
+          <span>ZeroWaste Connect</span>
+        </div>
+
+        <button
+          type="button"
+          className="analytics-home-button"
+          onClick={() => navigate('/')}
+        >
+          ← Back to Home
+        </button>
+
+      </nav>
+
+
+      {/* =========================
+          PAGE HEADER
+      ========================= */}
       <div className="page-header">
-        <h1>Platform Analytics</h1>
-        <p>Operational metrics on food recovery, category supply-demand, and algorithm confidence</p>
+
+        <div className="page-header-text">
+
+          <span className="page-header-label">
+            PLATFORM OVERVIEW
+          </span>
+
+          <h1>
+            Platform Analytics
+          </h1>
+
+          <p>
+            Monitor food recovery, donations, matches, and
+            supply-demand activity across ZeroWaste Connect.
+          </p>
+
+        </div>
+
+        <div className="page-header-icon">
+          📊
+        </div>
+
       </div>
 
-      {/* KPI Cards */}
+
+      {/* =========================
+          KPI CARDS
+      ========================= */}
       <div className="kpi-grid">
+
         {kpis.map((kpi, idx) => (
           <div key={idx} className="kpi-card">
-            <span className="icon">{kpi.icon}</span>
-            <div className="label">{kpi.label}</div>
-            <div className="value">{kpi.value.toLocaleString()}</div>
+
+            <span className="icon">
+              {kpi.icon}
+            </span>
+
+            <div className="label">
+              {kpi.label}
+            </div>
+
+            <div className="value">
+              {kpi.value.toLocaleString()}
+            </div>
+
           </div>
         ))}
+
       </div>
 
-      {/* Row 1: Supply vs. Demand & Category Breakdown */}
+
+      {/* =========================
+          ROW 1
+          RECOVERY + CATEGORY
+      ========================= */}
       <div className="two-column">
-        <div className="content-card">
-          <Bar data={supplyDemandData} options={supplyDemandOptions} />
+
+        <div className="content-card circular-chart">
+          <Doughnut
+            data={recoveryData}
+            options={recoveryOptions}
+          />
         </div>
-        <div className="content-card">
-          <Pie data={pieData} options={pieOptions} />
+
+        <div className="content-card circular-chart">
+          <Pie
+            data={pieData}
+            options={pieOptions}
+          />
         </div>
+
       </div>
 
-      {/* Row 2: Algorithm Score Quality & Food Rescue Rate */}
+
+      {/* =========================
+          ROW 2
+          MATCH QUALITY + SUPPLY/DEMAND
+      ========================= */}
       <div className="two-column">
-        <div className="content-card">
-          <Bar data={qualityScoreData} options={qualityScoreOptions} />
+
+        <div className="content-card analytics-chart">
+          <Bar
+            data={qualityScoreData}
+            options={qualityScoreOptions}
+          />
         </div>
-        <div className="content-card">
-          <Doughnut data={recoveryData} options={recoveryOptions} />
+
+        <div className="content-card analytics-chart">
+          <Bar
+            data={supplyDemandData}
+            options={supplyDemandOptions}
+          />
         </div>
+
       </div>
 
-      {/* Breakdown Data Tables */}
+
+      {/* =========================
+          DATA TABLES
+      ========================= */}
       <div className="two-column">
-        <div className="content-card">
-          <h5>Top Contributing Restaurants (Total Quantity Donated)</h5>
+
+        {/* TOP RESTAURANTS */}
+        <div className="content-card analytics-chart">
+
+          <h5>
+            Top Contributing Restaurants
+          </h5>
+
+          <p className="table-subtitle">
+            Total quantity donated
+          </p>
+
           <div className="table-responsive">
+
             <table className="table">
+
               <thead>
                 <tr>
                   <th>Restaurant</th>
@@ -341,27 +521,65 @@ function Analytics() {
                   <th>Total Units</th>
                 </tr>
               </thead>
+
               <tbody>
+
                 {restaurants.slice(0, 5).map((r) => {
-                  const items = foodListings.filter((f) => f.restaurantId === r.id);
-                  const totalQty = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+
+                  const items = foodListings.filter(
+                    (f) => f.restaurantId === r.id
+                  );
+
+                  const totalQty = items.reduce(
+                    (sum, item) =>
+                      sum + (Number(item.quantity) || 0),
+                    0
+                  );
+
                   return (
                     <tr key={r.id}>
-                      <td><strong>{r.name}</strong></td>
-                      <td>{items.length}</td>
-                      <td>{totalQty} units</td>
+
+                      <td>
+                        <strong>{r.name}</strong>
+                      </td>
+
+                      <td>
+                        {items.length}
+                      </td>
+
+                      <td>
+                        {totalQty} units
+                      </td>
+
                     </tr>
                   );
+
                 })}
+
               </tbody>
+
             </table>
+
           </div>
+
         </div>
 
-        <div className="content-card">
-          <h5>NGO Demand & Capacity Summary</h5>
+
+        {/* NGO SUMMARY */}
+        <div className="content-card analytics-chart">
+
+          <h5>
+            NGO Demand & Capacity Summary
+          </h5>
+
+          <p className="table-subtitle">
+            Current requirements across partner NGOs
+          </p>
+
           <div className="table-responsive">
+
             <table className="table">
+
               <thead>
                 <tr>
                   <th>NGO</th>
@@ -370,20 +588,45 @@ function Analytics() {
                   <th>Demand</th>
                 </tr>
               </thead>
+
               <tbody>
+
                 {ngos.slice(0, 5).map((ngo) => (
+
                   <tr key={ngo.id}>
-                    <td><strong>{ngo.name}</strong></td>
-                    <td><span className="badge badge-info">{ngo.categoryPreference}</span></td>
-                    <td>{ngo.capacity}</td>
-                    <td>{ngo.currentDemand}</td>
+
+                    <td>
+                      <strong>{ngo.name}</strong>
+                    </td>
+
+                    <td>
+                      <span className="badge badge-info">
+                        {ngo.categoryPreference}
+                      </span>
+                    </td>
+
+                    <td>
+                      {ngo.capacity}
+                    </td>
+
+                    <td>
+                      {ngo.currentDemand}
+                    </td>
+
                   </tr>
+
                 ))}
+
               </tbody>
+
             </table>
+
           </div>
+
         </div>
+
       </div>
+
     </div>
   );
 }
