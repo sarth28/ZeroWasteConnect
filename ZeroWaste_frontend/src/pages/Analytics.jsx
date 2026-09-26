@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import AddImage from '../assets/image.png';
+import AddImage from '../assets/image1.png';
 import { useNavigate } from 'react-router-dom';
 import {
   Chart as ChartJS,
