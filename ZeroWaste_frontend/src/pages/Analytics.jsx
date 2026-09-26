@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import AddImage from '../assets/image.png';
 import { useNavigate } from 'react-router-dom';
 import {
   Chart as ChartJS,
@@ -416,7 +417,7 @@ function Analytics() {
         </div>
 
         <div className="page-header-icon">
-          📊
+          <img src={AddImage} width="47px" height="50px"></img>
         </div>
 
       </div>
@@ -477,14 +478,14 @@ function Analytics() {
       ========================= */}
       <div className="two-column">
 
-        <div className="content-card analytics-chart">
+        <div className="content-card bar-chart">
           <Bar
             data={qualityScoreData}
             options={qualityScoreOptions}
           />
         </div>
 
-        <div className="content-card analytics-chart">
+        <div className="content-card bar-chart">
           <Bar
             data={supplyDemandData}
             options={supplyDemandOptions}
@@ -524,7 +525,7 @@ function Analytics() {
 
               <tbody>
 
-                {restaurants.slice(0, 5).map((r) => {
+                {restaurants.slice(0, 2).map((r) => {
 
                   const items = foodListings.filter(
                     (f) => f.restaurantId === r.id
@@ -591,7 +592,7 @@ function Analytics() {
 
               <tbody>
 
-                {ngos.slice(0, 5).map((ngo) => (
+                {ngos.slice(0, 2).map((ngo) => (
 
                   <tr key={ngo.id}>
 

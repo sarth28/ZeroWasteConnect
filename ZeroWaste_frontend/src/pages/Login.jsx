@@ -3,7 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
 function Login() {
-  const { isAuthenticated, login, register } = useAuth();
+  const { isAuthenticated, user, login, register, logout } = useAuth();
   const navigate = useNavigate();
 
   const [mode, setMode] = useState('login');
@@ -23,7 +23,7 @@ function Login() {
     return (
       <Navigate
         to={
-          role === 'NGO'
+          user?.role === 'NGO'
             ? '/ngo/dashboard'
             : '/restaurant/dashboard'
         }
@@ -61,7 +61,18 @@ function Login() {
         data = await login({
           email: formData.email,
           password: formData.password,
+          role: role, // Pass expected role to backend
         });
+
+        // Enforce role check: Prevent logging into wrong portal
+        if (data.role && data.role.toUpperCase() !== role.toUpperCase()) {
+          logout(); // Invalidate stored session
+          const actualRole = data.role === 'RESTAURANT' ? 'Restaurant' : 'NGO';
+          const chosenRole = role === 'RESTAURANT' ? 'Restaurant' : 'NGO';
+          throw new Error(
+            `This account is registered as a ${actualRole}. Please try a different email.`
+          );
+        }
       } else {
         data = await register({
           role,
@@ -77,6 +88,7 @@ function Login() {
 
     } catch (err) {
       const message =
+        err.message ||
         err.response?.data?.message ||
         (typeof err.response?.data === 'string'
           ? err.response.data
@@ -107,7 +119,6 @@ function Login() {
         </div>
 
         <div className="auth-toggle">
-
           <button
             type="button"
             className={mode === 'login' ? 'active' : ''}
@@ -129,19 +140,20 @@ function Login() {
           >
             Register
           </button>
-
         </div>
 
         <h5 className="mb-3">I am a...</h5>
 
         <div className="role-grid">
-
           <button
             type="button"
             className={`role-card ${
               role === 'RESTAURANT' ? 'selected' : ''
             }`}
-            onClick={() => setRole('RESTAURANT')}
+            onClick={() => {
+              setRole('RESTAURANT');
+              setError(null);
+            }}
           >
             <span className="role-icon">🍽️</span>
             <strong>Restaurant</strong>
@@ -153,13 +165,15 @@ function Login() {
             className={`role-card ${
               role === 'NGO' ? 'selected' : ''
             }`}
-            onClick={() => setRole('NGO')}
+            onClick={() => {
+              setRole('NGO');
+              setError(null);
+            }}
           >
             <span className="role-icon">🏛️</span>
             <strong>NGO</strong>
             <small>I want to request a donation</small>
           </button>
-
         </div>
 
         {error && (
@@ -169,7 +183,6 @@ function Login() {
         )}
 
         <form onSubmit={handleSubmit}>
-
           {mode === 'register' && (
             <>
               <label className="form-label">
@@ -248,35 +261,17 @@ function Login() {
             placeholder="At least 6 characters"
           />
 
-          {mode === 'login' && (
-            <p
-              className="text-muted"
-              style={{ fontSize: '0.85rem' }}
-            >
-              Choose Restaurant or NGO above.
-            </p>
-          )}
-
           <button
-            className="btn btn-primary w-100"
+            className="btn btn-primary w-100 mt-2"
             type="submit"
             disabled={submitting}
           >
             {submitting
               ? 'Please wait...'
               : mode === 'login'
-                ? `Login as ${
-                    role === 'RESTAURANT'
-                      ? 'Restaurant'
-                      : 'NGO'
-                  }`
-                : `Create ${
-                    role === 'RESTAURANT'
-                      ? 'restaurant'
-                      : 'NGO'
-                  } account`}
+                ? `Login as ${role === 'RESTAURANT' ? 'Restaurant' : 'NGO'}`
+                : `Create ${role === 'RESTAURANT' ? 'restaurant' : 'NGO'} account`}
           </button>
-
         </form>
       </div>
     </div>

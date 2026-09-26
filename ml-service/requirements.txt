@@ -3,3 +3,4 @@ uvicorn[standard]
 catboost
 pandas
 numpy
+scikit-learn

@@ -6,7 +6,8 @@ import {
 import {
   getFoodListings,
   matchFood,
-  getMatches
+  getMatches,
+  getNGOs
 } from '../api';
 
 import { useAuth } from '../auth/AuthContext';
@@ -17,76 +18,43 @@ function Matching() {
   const {
     user,
     isRestaurant,
-    isNGO
   } = useAuth();
 
+  const [foodListings, setFoodListings] = useState([]);
+  const [matches, setMatches] = useState([]);
+  const [ngos, setNgos] = useState([]);
 
-  const [foodListings, setFoodListings] =
-    useState([]);
-
-  const [matches, setMatches] =
-    useState([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [matchingId, setMatchingId] =
-    useState(null);
-
-  const [error, setError] =
-    useState(null);
-
-  const [matchResult, setMatchResult] =
-    useState(null);
-
+  const [loading, setLoading] = useState(true);
+  const [matchingId, setMatchingId] = useState(null);
+  const [error, setError] = useState(null);
+  const [matchResult, setMatchResult] = useState(null);
 
   useEffect(() => {
-
     fetchData();
-
   }, []);
 
-
   const fetchData = async () => {
-
     try {
-
       const [
         foodResponse,
-        matchesResponse
+        matchesResponse,
+        ngosResponse
       ] = await Promise.all([
-
         getFoodListings(),
-
-        getMatches()
-
+        getMatches(),
+        getNGOs()
       ]);
 
-
-      setFoodListings(
-        foodResponse.data || []
-      );
-
-      setMatches(
-        matchesResponse.data || []
-      );
-
+      setFoodListings(foodResponse.data || []);
+      setMatches(matchesResponse.data || []);
+      setNgos(ngosResponse.data || []);
     } catch (err) {
-
       console.error(err);
-
-      setError(
-        'Failed to load matching data.'
-      );
-
+      setError('Failed to load matching data.');
     } finally {
-
       setLoading(false);
-
     }
-
   };
-
 
   /*
    * Match food
@@ -94,412 +62,206 @@ function Matching() {
    * Only Restaurant users get
    * the Match Food button.
    */
-
   const handleMatch = async (foodId) => {
-
     setMatchingId(foodId);
-
     setError(null);
-
     setMatchResult(null);
 
-
     try {
+      const response = await matchFood(foodId);
+      const matchRecord = response.data;
 
-      const response =
-        await matchFood(foodId);
+      // Find the matched NGO using ngoId from the match record
+      const matchedNGO = ngos.find((ngo) => ngo.id === matchRecord?.ngoId);
 
-
-      setMatchResult(
-        response.data
-      );
-
+      setMatchResult({
+        ngoName: matchedNGO?.name || `NGO #${matchRecord?.ngoId}`,
+        ngoNumber: matchedNGO?.contactNumber || 'Contact not provided'
+      });
 
       await fetchData();
-
-
     } catch (err) {
-
       console.error(err);
-
       const message =
         err.response?.data?.message ||
+        (typeof err.response?.data === 'string' ? err.response.data : null) ||
         'Failed to match food.';
 
       setError(message);
-
     } finally {
-
       setMatchingId(null);
-
     }
-
   };
-
 
   /*
    * AVAILABLE FOOD
    */
-
-  const availableFood =
-    foodListings.filter(
-
-      (food) =>
-
-        !food.status ||
-
-        food.status.toUpperCase() ===
-        'AVAILABLE'
-
-    );
-
+  const availableFood = foodListings.filter(
+    (food) => !food.status || food.status.toUpperCase() === 'AVAILABLE'
+  );
 
   /*
-   * Restaurant should see
-   * its own food.
-   *
+   * Restaurant should see its own food.
    * NGO can see available food.
    */
-
   const visibleFood =
     isRestaurant && user?.restaurantId
-
       ? availableFood.filter(
-          (food) =>
-            food.restaurantId ===
-            user.restaurantId
+          (food) => food.restaurantId === user.restaurantId
         )
-
       : availableFood;
 
-
   return (
-
     <div>
-
-
       {/* HEADER */}
-
       <div className="page-header">
-
-        <h1>
-          Smart Matching
-        </h1>
-
+        <h1>Smart Matching</h1>
         <p>
-
           {isRestaurant
             ? 'Match your surplus food with NGOs.'
             : 'View food matching information.'}
-
         </p>
-
       </div>
 
-
       {/* ERROR */}
-
       {error && (
-
         <div className="alert alert-danger">
           {error}
         </div>
-
       )}
 
-
-      {/* SUCCESS */}
-
+      {/* SUCCESS MESSAGE */}
       {matchResult && (
-
         <div className="alert alert-success">
-
-          <strong>
-            Matching completed.
-          </strong>
-
-          <pre
-            className="mt-2 mb-0"
-            style={{
-              whiteSpace: 'pre-wrap'
-            }}
-          >
-            {JSON.stringify(
-              matchResult,
-              null,
-              2
-            )}
-          </pre>
-
+          <strong>Matching successful!</strong>
+          <div className="mt-2">
+            You have been successfully matched with{' '}
+            <strong>{matchResult.ngoName}</strong>. Contact them on{' '}
+            <strong>{matchResult.ngoNumber}</strong>.
+          </div>
         </div>
-
       )}
-
 
       {/* =========================
           AVAILABLE FOOD
       ========================= */}
-
       <div className="content-card">
-
         <h5>
-
-          Available Food
-          {' '}
-          ({visibleFood.length})
-
+          Available Food ({visibleFood.length})
         </h5>
 
-
         {loading ? (
-
           <div className="loading-spinner">
-
-            <div
-              className="spinner-border"
-              role="status"
-            >
-
-              <span className="visually-hidden">
-                Loading...
-              </span>
-
+            <div className="spinner-border" role="status">
+              <span className="visually-hidden">Loading...</span>
             </div>
-
           </div>
-
         ) : visibleFood.length === 0 ? (
-
           <div className="empty-state">
-
-            No food is currently
-            available for matching.
-
+            No food is currently available for matching.
           </div>
-
         ) : (
-
           <div className="table-responsive">
-
             <table className="table">
-
               <thead>
-
                 <tr>
-
                   <th>ID</th>
-
                   <th>Food</th>
-
                   <th>Quantity</th>
-
                   <th>Category</th>
-
                   <th>Shelf Life</th>
-
                   <th>Action</th>
-
                 </tr>
-
               </thead>
-
-
               <tbody>
-
-                {visibleFood.map(
-                  (food) => (
-
-                    <tr key={food.id}>
-
-                      <td>
-                        #{food.id}
-                      </td>
-
-                      <td>
-                        <strong>
-                          {food.foodName}
-                        </strong>
-                      </td>
-
-                      <td>
-                        {food.quantity}
-                      </td>
-
-                      <td>
-
-                        <span className="badge badge-info">
-                          {food.category}
+                {visibleFood.map((food) => (
+                  <tr key={food.id}>
+                    <td>#{food.id}</td>
+                    <td>
+                      <strong>{food.foodName}</strong>
+                    </td>
+                    <td>{food.quantity}</td>
+                    <td>
+                      <span className="badge badge-info">
+                        {food.category}
+                      </span>
+                    </td>
+                    <td>{food.shelfLifeHours}h</td>
+                    <td>
+                      {isRestaurant ? (
+                        <button
+                          className="btn btn-success btn-sm"
+                          onClick={() => handleMatch(food.id)}
+                          disabled={matchingId === food.id}
+                        >
+                          {matchingId === food.id ? 'Matching...' : 'Match Food'}
+                        </button>
+                      ) : (
+                        <span className="text-muted">
+                          Restaurant manages matching
                         </span>
-
-                      </td>
-
-                      <td>
-                        {food.shelfLifeHours}h
-                      </td>
-
-                      <td>
-
-                        {isRestaurant ? (
-
-                          <button
-                            className="btn btn-success btn-sm"
-                            onClick={() =>
-                              handleMatch(
-                                food.id
-                              )
-                            }
-                            disabled={
-                              matchingId ===
-                              food.id
-                            }
-                          >
-
-                            {matchingId ===
-                            food.id
-                              ? 'Matching...'
-                              : 'Match Food'}
-
-                          </button>
-
-                        ) : (
-
-                          <span className="text-muted">
-
-                            Restaurant manages
-                            matching
-
-                          </span>
-
-                        )}
-
-                      </td>
-
-                    </tr>
-
-                  )
-                )}
-
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
-
             </table>
-
           </div>
-
         )}
-
       </div>
-
 
       {/* =========================
           MATCH HISTORY
       ========================= */}
-
       <div className="content-card mt-4">
-
-        <h5>
-          Match History
-        </h5>
-
+        <h5>Match History</h5>
 
         {matches.length === 0 ? (
-
           <div className="empty-state">
-
             No matches have been created yet.
-
           </div>
-
         ) : (
-
           <div className="table-responsive">
-
             <table className="table">
-
               <thead>
-
                 <tr>
-
                   <th>ID</th>
-
                   <th>Food</th>
-
                   <th>NGO</th>
-
                   <th>Status</th>
-
                 </tr>
-
               </thead>
-
-
               <tbody>
-
-                {matches.map(
-                  (match, index) => (
-
-                    <tr
-                      key={
-                        match.id ||
-                        index
-                      }
-                    >
-
+                {matches.map((match, index) => {
+                  const matchedNGO = ngos.find((n) => n.id === match.ngoId);
+                  return (
+                    <tr key={match.id || index}>
                       <td>
-
-                        {match.id
-                          ? `#${match.id}`
-                          : `#${index + 1}`}
-
+                        {match.id ? `#${match.id}` : `#${index + 1}`}
                       </td>
-
                       <td>
-
                         {match.foodListingId
                           ? `Food #${match.foodListingId}`
                           : '-'}
-
                       </td>
-
                       <td>
-
-                        {match.ngoId
-                          ? `NGO #${match.ngoId}`
-                          : '-'}
-
+                        {matchedNGO ? matchedNGO.name : match.ngoId ? `NGO #${match.ngoId}` : '-'}
                       </td>
-
                       <td>
-
                         <span className="badge badge-success">
-
-                          {match.status ||
-                            'MATCHED'}
-
+                          {match.status || 'MATCHED'}
                         </span>
-
                       </td>
-
                     </tr>
-
-                  )
-                )}
-
+                  );
+                })}
               </tbody>
-
             </table>
-
           </div>
-
         )}
-
       </div>
-
-
     </div>
-
   );
-
 }
-
 
 export default Matching;

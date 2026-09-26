@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
 function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navigate = useNavigate();
 
   const {
     user,
@@ -11,6 +12,12 @@ function Layout() {
     isNgo,
     logout,
   } = useAuth();
+
+  const handleLogout = () => {
+    localStorage.removeItem('zw_token');
+    localStorage.removeItem('zw_user');
+    window.location.replace('/');
+  };
 
   const navItems = isRestaurant
     ? [
@@ -127,7 +134,7 @@ function Layout() {
           <button
             type="button"
             className="btn btn-sm btn-outline-light mt-2 w-100"
-            onClick={logout}
+            onClick={handleLogout}
           >
             Logout
           </button>

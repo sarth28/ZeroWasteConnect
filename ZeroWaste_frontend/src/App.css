@@ -471,15 +471,22 @@ body {
 
 .analytics-chart {
   height: 300px;
-
   position: relative;
 }
 
 .analytics-chart canvas {
-  max-height: 300px !important;
+  max-height: 500px !important;
 }
 
+.bar-chart {
+  height: 300px;
 
+  position: relative;
+}
+
+.bar-chart canvas {
+  max-height: 300px !important;
+}
 /* Circular charts */
 
 .circular-chart {

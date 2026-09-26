@@ -15,13 +15,9 @@ function ProtectedRoute({ children, allowedRole }) {
     );
   }
 
+  // If user role does not match required role, show Forbidden error page
   if (allowedRole && user?.role !== allowedRole) {
-    const dashboard =
-      user?.role === 'NGO'
-        ? '/ngo/dashboard'
-        : '/restaurant/dashboard';
-
-    return <Navigate to={dashboard} replace />;
+    return <Navigate to="/403" replace />;
   }
 
   return children;
