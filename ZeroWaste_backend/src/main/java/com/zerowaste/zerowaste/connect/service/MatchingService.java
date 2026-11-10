@@ -1,11 +1,15 @@
 package com.zerowaste.zerowaste.connect.service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.zerowaste.zerowaste.connect.dto.FoodMLRequest;
+import com.zerowaste.zerowaste.connect.dto.MatchPredictionResponse;
+import com.zerowaste.zerowaste.connect.dto.NGOMLRequest;
 import com.zerowaste.zerowaste.connect.entity.FoodListing;
 import com.zerowaste.zerowaste.connect.entity.MatchRecord;
 import com.zerowaste.zerowaste.connect.entity.NGO;
@@ -25,214 +29,155 @@ public class MatchingService {
     @Autowired
     private MatchRecordRepository matchRepository;
 
-    private double calculateDistance(
-            double lat1,
-            double lon1,
-            double lat2,
-            double lon2) {
+    @Autowired
+    private MLPredictionService mlPredictionService;
 
+    private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
         final double EARTH_RADIUS_KM = 6371.0;
 
         double lat1Rad = Math.toRadians(lat1);
         double lat2Rad = Math.toRadians(lat2);
-
         double deltaLat = Math.toRadians(lat2 - lat1);
         double deltaLon = Math.toRadians(lon2 - lon1);
 
         double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2)
-                + Math.cos(lat1Rad)
-                * Math.cos(lat2Rad)
-                * Math.sin(deltaLon / 2)
-                * Math.sin(deltaLon / 2);
+                + Math.cos(lat1Rad) * Math.cos(lat2Rad)
+                * Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
 
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
         return EARTH_RADIUS_KM * c;
     }
 
     public MatchRecord matchFood(Long foodId) {
 
-        // --------------------------------------------------
         // 1. Check whether food listing exists
-        // --------------------------------------------------
-
         FoodListing food = foodRepository.findById(foodId).orElse(null);
-
         if (food == null) {
             return null;
         }
 
-        // --------------------------------------------------
-        // 2. Validate food data required for matching
-        // --------------------------------------------------
-
+        // 2. Validate required food data
         if (food.getQuantity() == null || food.getQuantity() <= 0) {
-            throw new IllegalArgumentException(
-                    "Food quantity must be greater than 0"
-            );
+            throw new IllegalArgumentException("Food quantity must be greater than 0");
         }
-
         if (food.getLatitude() == null || food.getLongitude() == null) {
-            throw new IllegalArgumentException(
-                    "Food latitude and longitude are required for matching"
-            );
+            throw new IllegalArgumentException("Food latitude and longitude are required for matching");
         }
 
-        // --------------------------------------------------
-        // 3. Check whether this food is already matched
-        // --------------------------------------------------
-
-        List<MatchRecord> existingMatches =
-                matchRepository.findByFoodListingId(foodId);
-
+        // 3. Prevent duplicate matching
+        List<MatchRecord> existingMatches = matchRepository.findByFoodListingId(foodId);
         boolean alreadyMatched = existingMatches.stream()
-                .anyMatch(match ->
-                        "MATCHED".equalsIgnoreCase(match.getStatus()));
-
+                .anyMatch(match -> "MATCHED".equalsIgnoreCase(match.getStatus()));
         if (alreadyMatched) {
-            throw new IllegalStateException(
-                    "This food listing has already been matched"
-            );
+            throw new IllegalStateException("This food listing has already been matched");
         }
 
-        // --------------------------------------------------
-        // 4. Get all NGOs
-        // --------------------------------------------------
-
+        // 4. Retrieve candidate NGOs
         List<NGO> ngos = ngoRepository.findAll();
-
         if (ngos.isEmpty()) {
             return null;
         }
 
-        // --------------------------------------------------
-        // 5. Find best NGO
-        // --------------------------------------------------
+        // 5. Build Food ML payload
+        FoodMLRequest foodML = new FoodMLRequest();
+        foodML.setQuantity(food.getQuantity());
+        foodML.setCategory(food.getCategory() != null ? food.getCategory() : "Other");
+        int shelfLife = food.getShelfLifeHours() != null ? food.getShelfLifeHours() : 24;
+        foodML.setShelfLifeHours(shelfLife);
 
-        NGO selectedNGO = null;
-        double highestScore = -1;
+        double hoursUntilExpiry = 12.0;
+        if (food.getExpiryDate() != null) {
+            long hoursDiff = Duration.between(LocalDateTime.now(), food.getExpiryDate().atTime(23, 59)).toHours();
+            hoursUntilExpiry = Math.max(1.0, (double) hoursDiff);
+        }
+        foodML.setHoursUntilExpiry(hoursUntilExpiry);
 
+        double urgencyScore = Math.max(0.0, Math.min(1.0, 1.0 - (hoursUntilExpiry / (double) shelfLife)));
+        foodML.setUrgencyScore(Math.round(urgencyScore * 100.0) / 100.0);
+        foodML.setLatitude(food.getLatitude());
+        foodML.setLongitude(food.getLongitude());
+
+        NGO bestNgo = null;
+        double bestScore = -1.0;
+        String matchReason = "";
+
+        // 6. Evaluate each candidate
         for (NGO ngo : ngos) {
-
-            // Skip invalid NGO records
-            if (ngo.getCapacity() == null
-                    || ngo.getCurrentDemand() == null) {
+            if (ngo.getCapacity() == null || ngo.getCurrentDemand() == null
+                    || ngo.getLatitude() == null || ngo.getLongitude() == null) {
                 continue;
             }
 
-            if (ngo.getLatitude() == null
-                    || ngo.getLongitude() == null) {
-                continue;
-            }
+            int availableCapacity = ngo.getCapacity() - ngo.getCurrentDemand();
 
-            int availableCapacity =
-                    ngo.getCapacity() - ngo.getCurrentDemand();
-
-            // NGO cannot accept this donation
+            // Hard Rule Constraint: capacity check
             if (availableCapacity < food.getQuantity()) {
                 continue;
             }
 
-            // --------------------------------------------------
-            // Capacity score
-            // --------------------------------------------------
+            // Fallback Heuristic Score Calculation
+            double capacityScore = Math.min((double) availableCapacity / food.getQuantity(), 1.0) * 35.0;
+            double demandScore = Math.min(((double) ngo.getCurrentDemand() / 100.0) * 30.0, 30.0);
+            double categoryScore = (food.getCategory() != null && ngo.getCategoryPreference() != null
+                    && (food.getCategory().equalsIgnoreCase(ngo.getCategoryPreference())
+                    || "Any".equalsIgnoreCase(ngo.getCategoryPreference()))) ? 15.0 : 0.0;
+            double distance = calculateDistance(food.getLatitude(), food.getLongitude(), ngo.getLatitude(), ngo.getLongitude());
+            double distanceScore = Math.max(0.0, 20.0 - (distance * 10.0));
+            double ruleBasedTotal = capacityScore + demandScore + categoryScore + distanceScore;
 
-            double capacityRatio =
-                    Math.min(
-                            (double) availableCapacity / food.getQuantity(),
-                            1.0
-                    );
+            double finalCandidateScore;
+            String candidateReason;
 
-            double capacityScore = capacityRatio * 35;
+            // Step 7: Call ML Service with Heuristic Fallback
+            try {
+                NGOMLRequest ngoML = new NGOMLRequest();
+                ngoML.setCapacity(ngo.getCapacity());
+                ngoML.setCurrentDemand(ngo.getCurrentDemand());
+                ngoML.setCategoryPreference(ngo.getCategoryPreference() != null ? ngo.getCategoryPreference() : "Any");
+                ngoML.setLatitude(ngo.getLatitude());
+                ngoML.setLongitude(ngo.getLongitude());
 
-            // --------------------------------------------------
-            // Demand score
-            // --------------------------------------------------
+                MatchPredictionResponse mlResponse = mlPredictionService.predictMatch(foodML, ngoML);
 
-            double demandScore =
-                    Math.min(
-                            ((double) ngo.getCurrentDemand() / 100.0) * 30,
-                            30
-                    );
-
-            // --------------------------------------------------
-            // Category score
-            // --------------------------------------------------
-
-            double categoryScore = 0;
-
-            if (food.getCategory() != null
-                    && ngo.getCategoryPreference() != null
-                    && food.getCategory()
-                          .equalsIgnoreCase(
-                                  ngo.getCategoryPreference())) {
-
-                categoryScore = 15;
+                if (mlResponse != null && mlResponse.getMatch_probability() != null) {
+                    double mlProbPercent = mlResponse.getMatch_probability() * 100.0;
+                    // Hybrid score: 70% ML Probability + 30% Heuristic score
+                    finalCandidateScore = (0.70 * mlProbPercent) + (0.30 * ruleBasedTotal);
+                    candidateReason = String.format("ML Match Probability: %.1f%% | Rule-fit: %.1f/100 (Dist: %.1f km)",
+                            mlProbPercent, ruleBasedTotal, distance);
+                } else {
+                    finalCandidateScore = ruleBasedTotal;
+                    candidateReason = String.format("Rule-based heuristic: %.1f/100 (Dist: %.1f km)", ruleBasedTotal, distance);
+                }
+            } catch (Exception ex) {
+                // Graceful fallback if Python FastAPI service is offline
+                finalCandidateScore = ruleBasedTotal;
+                candidateReason = String.format("Fallback heuristic (ML unavailable): %.1f/100 (Dist: %.1f km)", ruleBasedTotal, distance);
             }
 
-            // --------------------------------------------------
-            // Distance score
-            // --------------------------------------------------
-
-            double distance = calculateDistance(
-                    food.getLatitude(),
-                    food.getLongitude(),
-                    ngo.getLatitude(),
-                    ngo.getLongitude()
-            );
-
-            double distanceScore =
-                    Math.max(0, 20 - (distance * 10));
-
-            // --------------------------------------------------
-            // Total score
-            // --------------------------------------------------
-
-            double totalScore =
-                    capacityScore
-                    + demandScore
-                    + categoryScore
-                    + distanceScore;
-
-            if (totalScore > highestScore) {
-
-                highestScore = totalScore;
-                selectedNGO = ngo;
+            if (finalCandidateScore > bestScore) {
+                bestScore = finalCandidateScore;
+                bestNgo = ngo;
+                matchReason = candidateReason;
             }
         }
 
-        // --------------------------------------------------
-        // 6. No suitable NGO found
-        // --------------------------------------------------
-
-        if (selectedNGO == null) {
+        if (bestNgo == null) {
             return null;
         }
 
-        // --------------------------------------------------
-        // 7. Create match
-        // --------------------------------------------------
-
+        // 8. Persist Match
         MatchRecord match = new MatchRecord();
-
         match.setFoodListingId(food.getId());
-        match.setNgoId(selectedNGO.getId());
+        match.setNgoId(bestNgo.getId());
         match.setStatus("MATCHED");
-
-        match.setMatchScore(
-                Math.round(highestScore * 100.0) / 100.0
-        );
-
-        match.setMatchingReason(
-                "Selected based on capacity, demand, "
-                + "category suitability and distance"
-        );
-
+        match.setMatchScore(Math.round(bestScore * 100.0) / 100.0);
+        match.setMatchingReason(matchReason);
         match.setMatchedAt(LocalDateTime.now());
 
         food.setStatus("MATCHED");
         foodRepository.save(food);
-        
+
         return matchRepository.save(match);
     }
 }
