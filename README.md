@@ -1,4 +1,3 @@
-```markdown
 # 🌱 ZeroWaste Connect
 
 **ZeroWaste Connect** is a full-stack food redistribution platform connecting **restaurants with surplus food** to **NGOs serving communities in need**.
@@ -21,13 +20,12 @@ Restaurants list surplus food with location and shelf-life details, NGOs manage 
 
 ##  Architecture & Tech Stack
 
-```text
 React 18 + Vite (5173) ──▶ Spring Boot 3 API (8081) ──▶ PostgreSQL (zerowaste_db)
                                     │
                                     ▼
                          FastAPI + CatBoost (8000)
 
-```
+
 
 ##  Machine Learning Service
 
